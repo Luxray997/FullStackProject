@@ -1,67 +1,122 @@
-import express from "express";
-import mysql from "mysql";
-import cors from 'cors';
+const express = require("express");
+const cors = require('cors');
 
 const app = express();
 
-const dataBase = mysql.createConnection({
-        host: "localhost",
-        user: "root",
-        password: "abcd",
-        database: "test"
-});
+const db = require("./models")
+
+const { User } = require("./models")
+const { Publication } = require("./models")
 
 app.use(express.json());
 app.use(cors())
 
 app.get("/", (request, response) => {
     response.json("hello, this is the backend")
-})
-
-app.get("/publications", (request, response) => {
-    const query = "SELECT p.id, title, year, first_name, last_name FROM publications p JOIN users u ON p.student_id = u.id";
-    dataBase.query(query, (error, data) => {
-        if (error) return response.status(500).json({error: "Error", details: error});
-        return response.json(data);
-    })
-})
-
-app.get("/authors", (request, response) => {
-    const query = "SELECT * from users";
-    dataBase.query(query, (error, data) => {
-        if (error) return response.status(500).json({error: "Error", details: error});
-        return response.json(data);
-    })
-})
-
-app.post("/update", (request, response) => {
-    const query = `UPDATE publications SET title = \"${request.body.title}\", year = ${request.body.year} WHERE id = ${request.body.id}`;
-    
-    dataBase.query(query, function (err, res) {
-        if (err) return response.status(500).json({error: "Error", details: err});
-        return response.json("Successfully updated publication")
-    })
-
 });
 
-app.post("/delete", (request, response) => {
-    const query = `DELETE FROM publications WHERE id = ${request.body.id}`
+app.post("/create", (request, response) => {
+    Publication.create({
+        student_id: request.body.authorID,
+        title: request.body.title,
+        year: request.body.year
+    }).catch(err => {
+        if (err) {
+            console.log(err);
+            response.send(err);
+        }
+    })
+    response.send("Successfully added publication")
+});
 
-    dataBase.query(query, function (err, res) {
-        if (err) return response.status(500).json({error: "Error", details: err});
-        return response.json("Successfully deleted publication")
+app.get("/publications", (request, response) => {
+    Publication.findAll({
+        attributes: ['id', 'title', 'year'],
+        include: [{
+                model: User,
+                as: 'student',
+                attributes: ['first_name', 'last_name'],
+                required: true,
+        }]
+    }).then((publications) => {
+        const results = publications.map(pub => ({
+            id: pub.id,
+            title: pub.title,
+            year: pub.year,
+            first_name: pub.student.first_name,
+            last_name: pub.student.last_name,
+          }));
+
+        response.send(results);
+    }).catch(err => {
+        if (err) {
+            console.log(err);
+            response.send(err);
+        }
+    })
+});
+
+app.get("/authors", (request, response) => {
+    User.findAll().then(users => response.send(users)).catch(err => {
+        if (err) {
+            console.log(err);
+            response.send(err);
+        }
+    })
+});
+
+app.post("/update", (request, response) => {
+    Publication.update({
+        title: request.body.title,
+        year: request.body.year
+    },
+    {
+        where: {
+            id: request.body.id
+        }
+    }).then(([affectedRows]) => {
+        response.send("Successfully updated publications");
+    }).catch(err => {
+        if (err) {
+            console.log(err);
+            response.send(err);
+        }
     })
 })
+
+app.post("/delete", (request, response) => {
+    Publication.destroy({
+        where: {
+            id: request.body.id,
+        }
+    }).then((deletedRows) => {
+        response.send("Successfully deleted publication")
+    }).catch(err => {
+        if (err) {
+            console.log(err);
+            response.send(err);
+        }
+    })
+});
 
 app.post("/create", (request, response) => {
-    const query = `INSERT INTO publications (student_id, title, year) VALUES (${request.body.authorID}, \"${request.body.title}\", ${request.body.year})`
+    Publication.create({
+        student_id: request.body.authorID,
+        title: request.body.title,
+        year: request.body.year
+    }).catch(err => {
+        if (err) {
+            console.log(err);
+            response.send(err);
+        }
+    });
 
-    dataBase.query(query, function (err, res) {
-        if (err) return response.status(500).json({error: "Error", details: err});
-        return response.json("Successfully added publication")
-    })
+    response.send("Successfully added publication");
 })
 
-app.listen(8800, () => {
-    console.log("Connected to backend")
+db.sequelize.sync().then(request => {
+
+    app.listen(8800, () => {
+        console.log("Connected to backend")
+    })
 })

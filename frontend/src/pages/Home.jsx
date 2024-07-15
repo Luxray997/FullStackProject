@@ -25,6 +25,8 @@ const Home = () => {
     const [showPopup, setShowPopup] = useState(false);
     const [popupContent, setPopupContent] = useState(<></>);
 
+    const [fetch, setFetch] = useState(true);
+
     function getPublicationFromID(id) {
         return publications.find((pub) => 
             pub.id == id
@@ -106,6 +108,8 @@ const Home = () => {
         .catch(function (error) {
             showErrorPopup(error.message)
         })
+
+        setFetch(true);
     }
 
     function clearAndClosePopup() {
@@ -149,6 +153,7 @@ const Home = () => {
             </>)
         })
         setPublicationEditData(0)
+        setFetch(true);
     }
 
     function handlePublicationEdit(e) {
@@ -166,28 +171,34 @@ const Home = () => {
     }
 
     useEffect(() => {
-        const fetchAllBooks = async () => {
-            try {
-                const response = await axios.get("http://localhost:8800/publications");
-                setPublications(response.data);
-            } catch (error) {
-                console.log(error);
+        if (fetch) {
+            const fetchAllBooks = async () => {
+                try {
+                    const response = await axios.get("http://localhost:8800/publications");
+                    setPublications(response.data);
+                    console.log(response.data);
+                } catch (error) {
+                    console.log(error);
+                }
+            };
+    
+            fetchAllBooks();
+    
+            const fetchAuthors = async () => {
+                try {
+                    const response = await axios.get("http://localhost:8800/authors");
+                    setAuthors(response.data);
+                } catch (error) {
+                    console.log(error);
+                }
             }
-        };
+    
+            fetchAuthors();
 
-        fetchAllBooks();
-
-        const fetchAuthors = async () => {
-            try {
-                const response = await axios.get("http://localhost:8800/authors");
-                setAuthors(response.data);
-            } catch (error) {
-                console.log(error);
-            }
+            setFetch(false);
         }
-
-        fetchAuthors();
-    });
+        
+    }, [fetch]);
 
     function showErrorPopup(message) {
         setPopupContent(<>
@@ -225,6 +236,8 @@ const Home = () => {
         .catch(function (error) {
             showErrorPopup(error.message)
         })
+
+        setFetch(true);
     }
 
     return <div className="page-container">
